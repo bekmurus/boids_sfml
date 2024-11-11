@@ -1,39 +1,23 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
-
-#define FPS 30
-
-#define NUM_BOIDS         50
-#define VISUAL_RANGE      100.0f
-#define VISUAL_RANGE_SQRD      (VISUAL_RANGE * VISUAL_RANGE)
-#define PROTECTED_RANGE   10.0f
-#define PROTECTED_RANGE_SQRD   (PROTECTED_RANGE * PROTECTED_RANGE)
-#define TURN_FACTOR       0.2f
-#define MATCHING_FACTOR   0.05f
-#define AVOID_FACTOR      0.05f
-#define CENTERING_FACTOR  0.0005f
-#define MIN_SPEED 2
-#define MAX_SPEED 3
-
-#define WIN_WIDTH  800
-#define WIN_HEIGHT 600
-
-#define TOP_MARGIN    WIN_HEIGHT/16.0f
-#define BOTTOM_MARGIN WIN_HEIGHT - TOP_MARGIN
-#define LEFT_MARGIN   WIN_WIDTH/16.0f
-#define RIGHT_MARGIN  WIN_WIDTH - LEFT_MARGIN
+#include "../include/sim_config.hpp"
 
 using namespace std;
 using namespace sf;
 
 int main() {
     // Create a window with the given dimensions
-    RenderWindow window(VideoMode(WIN_WIDTH, WIN_HEIGHT), "SFML Moving Circle Example");
+    RenderWindow window(VideoMode(WIN_WIDTH, WIN_HEIGHT), "BoidSim");
     window.setFramerateLimit(FPS); // call it once, after creating the window
 
-    // Create a circle shape with a radius of 10
+    // Create a boid shape
     CircleShape circle(1.0f);
     circle.setFillColor(Color::White);
+
+    // Create a predator shape
+    CircleShape predator(10.0f);
+    predator.setFillColor(Color::Red);
+    predator.setPosition(Vector2f(WIN_WIDTH/2, WIN_HEIGHT/2));
 
     // Vector of boid elements
     vector<CircleShape> boids(NUM_BOIDS, circle);
@@ -64,6 +48,12 @@ int main() {
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed)
                 window.close();
+            
+            if (event.type == Event::MouseMoved)
+            {
+                // Move the predator with mouse cursor
+                predator.setPosition(Vector2f(event.mouseMove.x, event.mouseMove.y));
+            }
         }
 
         
@@ -123,7 +113,7 @@ int main() {
             }
             
 
-            velocities[current].y += close_dy * AVOID_FACTOR; /* Separation */
+            velocities[current].x += close_dx * AVOID_FACTOR; /* Separation */
             velocities[current].y += close_dy * AVOID_FACTOR; /* Separation */
 
             /* Screen edges */
@@ -166,16 +156,30 @@ int main() {
                 velocities[current].y = (velocities[current].y / speed) * MAX_SPEED;
             }
 
+            /* Avoid the predator */
+            dx = boids[current].getPosition().x - predator.getPosition().x;
+            dy = boids[current].getPosition().y - predator.getPosition().y;
+
+            float distance_sqrd = dx*dx + dy*dy;
+            if (distance_sqrd < VISUAL_RANGE_SQRD*2)
+            {
+                velocities[current].x += dx * 0.005f; /* Avoid */
+                velocities[current].y += dy * 0.005f; /* Avoid */
+            }
+
             boids[current].move(velocities[current]);
-        }
+        } // end for loop
 
         // Clear the window with a black color
         window.clear(Color::Black);
         for(auto &boid: boids)
         {
-            // Draw the circle
+            // Draw the boids
             window.draw(boid);
         }
+
+        // Draw the predator
+        window.draw(predator);
         
         // Display what was drawn to the screen
         window.display();
